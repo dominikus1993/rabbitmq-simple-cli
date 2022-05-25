@@ -24,41 +24,43 @@ func publishMessage(c *cli.Context) error {
 func main() {
 
 	app := &cli.App{
-		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:    "exchange-name",
-				Aliases: []string{"e"},
-				Usage:   "name of rabbitmq exchange",
-			},
-			&cli.StringFlag{
-				Name:    "topic",
-				Aliases: []string{"t"},
-				Usage:   "topic to publish to",
-			},
-			&cli.StringFlag{
-				Name:    "queue-name",
-				Aliases: []string{"q"},
-				Usage:   "queue name to consume from",
-			},
-			&cli.StringFlag{
-				Name:    "json-body",
-				Aliases: []string{"b"},
-				Usage:   `json body to publish to rabbitmq`,
-			},
-			&cli.StringFlag{
-				Name:     "rabbitmq-url",
-				Aliases:  []string{"r"},
-				Usage:    "rabbitmq url",
-				Value:    "amqp://guest:guest@rabbitmq:5672/",
-				Required: true,
-			},
-		},
 		Commands: []*cli.Command{
 			{
-				Name:    "publish",
-				Aliases: []string{"c"},
-				Usage:   "complete a task on the list",
-				Action:  publishMessage,
+				Name:         "publish",
+				Aliases:      []string{"c"},
+				Usage:        "complete a task on the list",
+				BashComplete: cli.DefaultAppComplete,
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:    "exchange-name",
+						Aliases: []string{"e"},
+						Usage:   "name of rabbitmq exchange",
+					},
+					&cli.StringFlag{
+						Name:    "topic",
+						Aliases: []string{"t"},
+						Usage:   "topic to publish to",
+					},
+					&cli.StringFlag{
+						Name:    "queue-name",
+						Aliases: []string{"q"},
+						Usage:   "queue name to consume from",
+					},
+					&cli.StringFlag{
+						Name:     "json-body",
+						Aliases:  []string{"b"},
+						Usage:    `json body to publish to rabbitmq`,
+						Required: true,
+					},
+					&cli.StringFlag{
+						Name:     "rabbitmq-url",
+						Aliases:  []string{"r"},
+						Usage:    "rabbitmq url",
+						Value:    "amqp://guest:guest@rabbitmq:5672/",
+						Required: true,
+					},
+				},
+				Action: publishMessage,
 			},
 		},
 	}

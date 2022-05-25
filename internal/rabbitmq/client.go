@@ -29,11 +29,11 @@ type RabbitMqConfig struct {
 func NewRabbitMqClient(connStr string) (*rabbitMqClient, error) {
 	conn, err := amqp.Dial(connStr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error when dial rabbitmq %w", err)
 	}
 	ch, err := conn.Channel()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error when create channel %w", err)
 	}
 	return &rabbitMqClient{Connection: conn, Channel: ch}, nil
 }
