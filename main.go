@@ -1,15 +1,17 @@
 package main
 
 import (
-	"log"
 	"os"
 	"sort"
 
 	"github.com/dominikus1993/rabbitmq-simple-cli/internal/rabbitmq"
+	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 )
 
 func publishMessage(c *cli.Context) error {
+	url := c.String("rabbitmq-url")
+	log.WithField("url", url).Info("Witam")
 	client, err := rabbitmq.NewRabbitMqClient(c.String("rabbitmq-url"))
 	if err != nil {
 		return err
@@ -20,6 +22,7 @@ func publishMessage(c *cli.Context) error {
 }
 
 func main() {
+
 	app := &cli.App{
 		Flags: []cli.Flag{
 			&cli.StringFlag{
@@ -43,10 +46,11 @@ func main() {
 				Usage:   `json body to publish to rabbitmq`,
 			},
 			&cli.StringFlag{
-				Name:    "rabbitmq-url",
-				Aliases: []string{"r"},
-				Usage:   "rabbitmq url",
-				Value:   "amqp://guest:guest@localhost:5672/",
+				Name:     "rabbitmq-url",
+				Aliases:  []string{"r"},
+				Usage:    "rabbitmq url",
+				Value:    "amqp://guest:guest@rabbitmq:5672/",
+				Required: true,
 			},
 		},
 		Commands: []*cli.Command{
@@ -56,14 +60,6 @@ func main() {
 				Usage:   "complete a task on the list",
 				Action:  publishMessage,
 			},
-			{
-				Name:    "add",
-				Aliases: []string{"a"},
-				Usage:   "add a task to the list",
-				Action: func(c *cli.Context) error {
-					return nil
-				},
-			},
 		},
 	}
 
@@ -71,6 +67,6 @@ func main() {
 	sort.Sort(cli.CommandsByName(app.Commands))
 	err := app.Run(os.Args)
 	if err != nil {
-		log.Fatal(err)
+		log.WithError(err).Fatalln("error running app")
 	}
 }
