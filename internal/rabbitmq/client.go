@@ -13,6 +13,7 @@ type RabbitMqClient interface {
 	GetChannel() *amqp.Channel
 	Close()
 	DeclareExchange(ctx context.Context, exchangeName string) error
+	DeclareQueue(ctx context.Context, exchange, topic, queue string) error
 	Publish(ctx context.Context, exchangeName string, topic string, msg amqp.Publishing) error
 }
 
@@ -36,6 +37,36 @@ func NewRabbitMqClient(connStr string) (*rabbitMqClient, error) {
 		return nil, fmt.Errorf("error when create channel %w", err)
 	}
 	return &rabbitMqClient{Connection: conn, Channel: ch}, nil
+}
+
+func (c *rabbitMqClient) DeclareQueue(ctx context.Context, exchange, topic, queue string) error {
+	err := c.Channel.QueueDeclare(
+		queue, // name
+		false, // durable
+		false, // delete when unused
+		true,  // exclusive
+		false, // no-wait
+		amqp.Table{
+			"x-dead-letter-exchange":    exchange,
+			"x-dead-letter-routing-key": topic,
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("error when declare queue %w", err)
+	}
+
+	err = c.Channel.QueueBind(
+		queue, // queue name
+		topic, // routing key
+		exchange,
+		false,
+		nil,
+	)
+	if err != nil {
+		return fmt.Errorf("error when bind queue %w", err)
+	}
+
+	return nil
 }
 
 func (client *rabbitMqClient) GetChannel() *amqp.Channel {
