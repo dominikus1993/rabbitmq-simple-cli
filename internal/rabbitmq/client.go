@@ -13,7 +13,7 @@ type RabbitMqClient interface {
 	GetChannel() *amqp.Channel
 	Close()
 	DeclareExchange(ctx context.Context, exchangeName string) error
-	DeclareQueue(ctx context.Context, exchange, topic, queue string) error
+	DeclareQueue(ctx context.Context, exchange, topic, queue string) (*amqp.Queue, error)
 	Publish(ctx context.Context, exchangeName string, topic string, msg amqp.Publishing) error
 }
 
@@ -39,11 +39,11 @@ func NewRabbitMqClient(connStr string) (*rabbitMqClient, error) {
 	return &rabbitMqClient{Connection: conn, Channel: ch}, nil
 }
 
-func (c *rabbitMqClient) DeclareQueue(ctx context.Context, exchange, topic, queue string) error {
-	err := c.Channel.QueueDeclare(
+func (c *rabbitMqClient) DeclareQueue(ctx context.Context, exchange, topic, queue string) (*amqp.Queue, error) {
+	q, err := c.Channel.QueueDeclare(
 		queue, // name
 		false, // durable
-		false, // delete when unused
+		true,  // delete when unused
 		true,  // exclusive
 		false, // no-wait
 		amqp.Table{
@@ -52,21 +52,21 @@ func (c *rabbitMqClient) DeclareQueue(ctx context.Context, exchange, topic, queu
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("error when declare queue %w", err)
+		return nil, fmt.Errorf("error when declare queue %w", err)
 	}
 
 	err = c.Channel.QueueBind(
-		queue, // queue name
-		topic, // routing key
+		q.Name, // queue name
+		topic,  // routing key
 		exchange,
 		false,
 		nil,
 	)
 	if err != nil {
-		return fmt.Errorf("error when bind queue %w", err)
+		return nil, fmt.Errorf("error when bind queue %w", err)
 	}
 
-	return nil
+	return &q, nil
 }
 
 func (client *rabbitMqClient) GetChannel() *amqp.Channel {
@@ -107,18 +107,4 @@ func (client *rabbitMqClient) Publish(ctx context.Context, exchangeName string, 
 	}
 
 	return client.Channel.Publish(exchangeName, topic, false, false, msg)
-}
-
-type RabbitMqPublisher struct {
-	cfg      *RabbitMqConfig
-	rabbitmq RabbitMqClient
-}
-
-func NewRabbitMqPublisher(rabbitmq RabbitMqClient, cfg *RabbitMqConfig) *RabbitMqPublisher {
-	return &RabbitMqPublisher{rabbitmq: rabbitmq, cfg: cfg}
-}
-
-func (p *RabbitMqPublisher) PublishMessage(context context.Context, jsonB string) error {
-	jsonBody := []byte(jsonB)
-	return p.rabbitmq.Publish(context, p.cfg.ExchangeName, p.cfg.Topic, amqp.Publishing{ContentType: "application/json", Body: jsonBody})
 }

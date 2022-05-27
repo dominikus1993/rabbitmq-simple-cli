@@ -2,9 +2,15 @@ package rabbitmq
 
 import (
 	"context"
-	amqp "github.com/rabbitmq/amqp091-go"
+	"errors"
+	"time"
+
+	"github.com/goombaio/namegenerator"
 	"github.com/k0kubun/pp"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
+
+var errQueueNameRequired = errors.New("queue name is required")
 
 type RabbitMqSubscriptionConfig struct {
 	Queue    string
@@ -21,8 +27,19 @@ func NewRabbitMqSubscriber(rabbitmq RabbitMqClient, cfg *RabbitMqSubscriptionCon
 	return &RabbitMqSubscriber{rabbitmq: rabbitmq, cfg: cfg}
 }
 
-func (s *RabbitMqSubscriber) sub() (<-chan amqp.Delivery, error) {
+func generateQueueName() string {
+	seed := time.Now().UTC().UnixNano()
+	nameGenerator := namegenerator.NewNameGenerator(seed)
+
+	return nameGenerator.Generate()
+
+}
+
+func (s *RabbitMqSubscriber) consume(ctx context.Context) (<-chan amqp.Delivery, error) {
 	if s.cfg.Exchange == "" {
+		if s.cfg.Queue == "" {
+			return nil, errQueueNameRequired
+		}
 		return s.rabbitmq.GetChannel().Consume(s.cfg.Queue, "", false, false, false, false, nil)
 	}
 	var topic string
@@ -32,12 +49,18 @@ func (s *RabbitMqSubscriber) sub() (<-chan amqp.Delivery, error) {
 		topic = s.cfg.Topic
 	}
 	if s.cfg.Queue == "" {
-		s.rabbitmq.
-		return s.rabbitmq.GetChannel().Consume(s.cfg.Exchange, topic, false, false, false, false, nil)
+		qName := generateQueueName()
+		q, err := s.rabbitmq.DeclareQueue(ctx, s.cfg.Exchange, topic, qName)
+		if err != nil {
+			return nil, err
+		}
+		return s.rabbitmq.GetChannel().Consume(q.Name, "go-cli", false, false, false, false, nil)
+	}
+	return s.rabbitmq.GetChannel().Consume(s.cfg.Queue, "go-cli", false, false, false, false, nil)
 }
 
-func (p *RabbitMqSubscriber) Subscribe(context context.Context) error {
-	stream, err := p.rabbitmq.GetChannel().Consume(p.cfg.Queue, "go-cli", false, false, false, false, nil)
+func (p *RabbitMqSubscriber) Subscribe(ctx context.Context) error {
+	stream, err := p.consume(ctx)
 	if err != nil {
 		return err
 	}
@@ -50,7 +73,7 @@ func (p *RabbitMqSubscriber) Subscribe(context context.Context) error {
 	// Register it for usage
 	pp.SetColorScheme(scheme)
 	select {
-	case <-context.Done():
+	case <-ctx.Done():
 		return nil
 	case msg, ok := <-stream:
 		if !ok {
