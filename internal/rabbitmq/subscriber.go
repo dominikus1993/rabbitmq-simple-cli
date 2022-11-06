@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/goombaio/namegenerator"
-	"github.com/k0kubun/pp"
+	"github.com/k0kubun/pp/v3"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
